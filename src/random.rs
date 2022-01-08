@@ -112,7 +112,7 @@ impl ColorSettings {
 }
 
 pub struct LetterSettings {
-    num_letters: u8,
+    num_letters: usize,
 }
 
 impl LetterSettings {
@@ -122,8 +122,8 @@ impl LetterSettings {
         }
     }
 
-    pub fn generate(&self, rng: &mut ThreadRng) -> Vec<char> {
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[0..rng.gen_range(6..=26)]
+    pub fn generate(&self) -> Vec<char> {
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[0..self.num_letters]
             .chars()
             .into_iter()
             .collect()
@@ -140,7 +140,7 @@ impl SpriteSettings {
         let mut rng = rand::thread_rng();
 
         let letter_settings = LetterSettings::random(&mut rng);
-        let letters = letter_settings.generate(&mut rng);
+        let letters = letter_settings.generate();
 
         let rule_settings = RuleSettings::random(&mut rng);
         let mut rules: Vec<Rule> = vec![];

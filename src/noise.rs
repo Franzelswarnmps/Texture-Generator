@@ -30,13 +30,8 @@ pub fn noise_fill(sprite: &mut SpriteGen) {
 }
 
 fn noise_plateau(rng: &mut ThreadRng, letter_colors: &HashMap<char, [u8; 4]>) -> Vec<(f64,Vec<char>)> {
-    let mut rng = rand::thread_rng();
     let letters: Vec<char> = letter_colors.keys().map(|s| s.to_owned()).collect();
-    // make array of (letter,[letters that are similar similar])
-    // random number of layers
-    // for each layer, random number of letters from the similar pool
-    // - main gets highest weight
-    // - chance for random letter, low weight if present
+
     let mut diff_pairs = vec![];
     for (k1,v1) in letter_colors.iter() {
         for (k2,v2) in letter_colors.iter() {
@@ -47,9 +42,10 @@ fn noise_plateau(rng: &mut ThreadRng, letter_colors: &HashMap<char, [u8; 4]>) ->
             }
         }
     }
-    let total_diff: u32 = diff_pairs.iter().map(|(_,_,n)| n).sum();
-    //let avg_diff = total_diff / letter_colors.keys().len() as u32;
-    let avg_diff = 100;
+    // let total_diff: u32 = diff_pairs.iter().map(|(_,_,n)| n).sum();
+    // let avg_diff = total_diff / letter_colors.keys().len() as u32;
+
+    let avg_diff = 100; // TODO make config
 
     let mut letter_groups: HashMap<char,Vec<char>> = letters.iter().map(|l| (l.to_owned(),vec![l.to_owned()])).collect();
     for (letter1,letter2,diff) in diff_pairs {

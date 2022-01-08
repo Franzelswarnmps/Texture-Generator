@@ -7,7 +7,7 @@ use crate::sprite_gen::*;
 
 
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
     render::{camera::Camera, texture::*},
 };
@@ -24,17 +24,10 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn setup(mut commands: Commands) {
     // camera
     //commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-
-    // commands.spawn_bundle(SpriteBundle {
-    //     material: materials.add(ColorMaterial::color(Color::rgb(0.9, 0.9, 0.9))),
-    //     transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
-    //     sprite: Sprite::new(Vec2::new(50., 50.)),
-    //     ..Default::default()
-    // });
 }
 
 fn movement(
