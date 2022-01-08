@@ -5,22 +5,21 @@ mod noise;
 
 use crate::sprite_gen::*;
 
-
 use bevy::{
     //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
-    render::{camera::Camera, texture::*},
+    render::{camera::Camera, render_resource::{Extent3d, TextureDimension, TextureFormat}},
 };
 
 fn main() {
-    App::build()
+    App::new()
         .add_plugins(DefaultPlugins)
         //.add_plugin(LogDiagnosticsPlugin::default())
         //.add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_startup_system(setup.system())
-        .add_startup_system(texture_setup.system())
-        .add_system(movement.system())
-        .add_system(texture_update.system())
+        .add_startup_system(setup)
+        .add_startup_system(texture_setup)
+        .add_system(movement)
+        .add_system(texture_update)
         .run();
 }
 
@@ -54,19 +53,15 @@ fn movement(
         movement *= 4.;
     }
 
-    if let Ok(mut transform) = camera.single_mut() {
-        transform.translation += movement;
-    } else {
-        panic!("CAMERA NOT FOUND");
-    }
+    camera.single_mut().translation += movement;
 }
 
 
 // update resource
 fn texture_update(
     keyboard_input: Res<Input<KeyCode>>,
-    mut textures: ResMut<Assets<Texture>>,
-    texture: Res<Handle<Texture>>,
+    mut textures: ResMut<Assets<Image>>,
+    texture: Res<Handle<Image>>,
     mut sprite_gen: ResMut<SpriteGen>,
 ) {
     let texture = textures.get_mut(&*texture).unwrap();
@@ -92,8 +87,7 @@ fn texture_update(
 // make texture, add as resource. also add shrite_gen as resource
 fn texture_setup(
     mut commands: Commands,
-    mut textures: ResMut<Assets<Texture>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut textures: ResMut<Assets<Image>>,
 ) {
     let width: usize = 256;
     let height: usize = 256;
@@ -112,57 +106,26 @@ fn texture_setup(
 
     commands.insert_resource(sprite_gen);
 
-    let texture_handle = textures.add(Texture::new_fill(
-        Extent3d::new(width as u32, height as u32, 1),
+    let texture_handle = textures.add(Image::new_fill(
+        Extent3d {
+            width: width as u32,
+            height: height as u32,
+            ..Default::default()
+        },
         TextureDimension::D2,
         &texture,
         TextureFormat::Rgba8UnormSrgb,
     ));
 
-    let material_handle = materials.add(ColorMaterial::texture(texture_handle.clone()));
-
     commands.spawn_bundle(SpriteBundle {
-        material: material_handle,
+        texture: texture_handle.clone(),
         transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
-        sprite: Sprite::new(Vec2::new(800., 800.)),
+        sprite: Sprite { 
+            custom_size: Some(Vec2::new(800., 800.)),
+            ..Default::default()
+        },
         ..Default::default()
     });
 
     commands.insert_resource(texture_handle);
 }
-
-// fn spawn_sprites(
-//     mut commands: Commands,
-//     mut textures: ResMut<Assets<Texture>>,
-//     mut materials: ResMut<Assets<ColorMaterial>>,
-// ) {
-//     let width: usize = 256;
-//     let height: usize = 256;
-//     let mut texture = PixelTexture::new(width,height);
-
-//     let mut rng = rand::thread_rng();
-//     let distr = rand::distributions::Uniform::new_inclusive(0, 255);
-
-//     for x in 0..width {
-//         for y in 0..height {
-//             let pixel = [rng.sample(distr),rng.sample(distr),rng.sample(distr),rng.sample(distr)];
-//             texture.set(x,y,pixel);
-//         }
-//     }
-     
-//     let texture_handle = textures.add(Texture::new_fill(
-//         Extent3d::new(width as u32, height as u32, 1),
-//         TextureDimension::D2,
-//         texture.get(),
-//         TextureFormat::Rgba8UnormSrgb,
-//     ));
-
-//     let material_handle = materials.add(ColorMaterial::texture(texture_handle));
-
-//     commands.spawn_bundle(SpriteBundle {
-//         material: material_handle,
-//         transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
-//         sprite: Sprite::new(Vec2::new(800., 800.)),
-//         ..Default::default()
-//     });
-// }
