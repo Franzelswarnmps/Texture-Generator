@@ -73,8 +73,10 @@ impl SpriteGen {
 
 #[derive(Clone)]
 pub struct Rule {
-    pub condition: Regex,
-    pub action: Vec<RuleAction>,
+    condition: Regex,
+    action: Vec<RuleAction>,
+    original_action: String,
+    original_condition: String,
 }
 #[derive(Debug,Clone)]
 pub struct RuleAction {
@@ -95,8 +97,28 @@ impl Rule {
         Self {
             //condition: Regex::new(&format!(r"{}{}{}", regex_bounds, condition, regex_bounds)).unwrap(),
             condition: Regex::new(&condition).unwrap(),
-            action: parse_action(action),
+            action: parse_action(action.clone()),
+            original_action: action,
+            original_condition: condition,
         }
+    }
+
+    pub fn update_condition(&mut self, condition: String) {
+        self.condition = Regex::new(&condition).unwrap();
+        self.original_condition = condition;
+    }
+
+    pub fn update_action(&mut self, action: String) {
+        self.action = parse_action(action.clone());
+        self.original_action = action;
+    }
+
+    pub fn get_action(&self) -> &str {
+        self.original_action.as_ref()
+    }
+
+    pub fn get_condition(&self) -> &str {
+        self.original_condition.as_ref()
     }
 }
 

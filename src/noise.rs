@@ -19,20 +19,14 @@ struct NoiseSettings {
     generator_chance: f32,
     modify_chance: f32,
     combine_chance: f32,
-    generator_weight: Vec<usize>,
-    modifier_weight: Vec<usize>,
-    combiner_weight: Vec<usize>,
 }
 
 impl NoiseSettings {
     pub fn random(rng: &mut ThreadRng) -> Self {
         Self {
-            generator_chance: rng.gen_range(0.01..0.9),
-            modify_chance: rng.gen_range(0.01..0.9),
-            combine_chance: rng.gen_range(0.01..0.9),
-            generator_weight: (0..=8).map(|_| rng.gen_range(0..=4)).collect(),
-            modifier_weight: (0..=4).map(|_| rng.gen_range(0..=4)).collect(),
-            combiner_weight: (0..=4).map(|_| rng.gen_range(0..=4)).collect(),
+            generator_chance: rng.gen_range(0.1..0.5),
+            modify_chance: rng.gen_range(0.2..0.9),
+            combine_chance: rng.gen_range(0.2..0.9),
         }
     }
 }
@@ -148,7 +142,7 @@ fn random_modifier(rng: &mut ThreadRng, source: &dyn NoiseFn<[f64; 3]>, settings
     match rng.gen_range(0..=4) {
         0 => GeneratedNoise::from_noise(&Abs::new(source), settings),
         1 => GeneratedNoise::from_noise(&Clamp::new(source).set_bounds(rng.gen_range(-1.0..0.0), rng.gen_range(0.0..1.0),), settings),
-        2 => GeneratedNoise::from_noise(&Exponent::new(source).set_exponent(rng.gen_range(0.1..3.0)), settings),
+        2 => GeneratedNoise::from_noise(&Exponent::new(source).set_exponent(rng.gen_range(0.1..2.0)), settings),
         3 => GeneratedNoise::from_noise(&Negate::new(source), settings),
         4 => GeneratedNoise::from_noise(&ScaleBias::new(source).set_scale(rng.gen_range(0.1..3.0)).set_bias(rng.gen_range(0.0..1.0)), settings),
         _ => panic!("random modifier range wrong"),
@@ -178,8 +172,8 @@ fn random_noise(sprite: &mut SpriteGen) -> NoiseMap {
     let mut last_layer: Vec<GeneratedNoise> = vec![];
     let layer_settings = GeneratedNoiseSettings {
         size: sprite.dimensions,
-        x_bounds: (-1.,1.),
-        y_bounds: (-1.,1.),
+        x_bounds: (-3.,3.),
+        y_bounds: (-3.,3.),
     };
 
     // generators
@@ -247,17 +241,15 @@ fn noise_plateau(
     let mut diff_pairs = vec![];
     for (k1, v1) in letter_colors.iter() {
         for (k2, v2) in letter_colors.iter() {
-            if *k1 != *k2 {
-                let sum1: i32 = v1.iter().map(|i| *i as i32).sum();
-                let sum2: i32 = v2.iter().map(|i| *i as i32).sum();
-                diff_pairs.push((*k1, *k2, (sum1 - sum2).abs() as u32));
-            }
+            let sum1: i32 = v1.iter().map(|i| *i as i32).sum();
+            let sum2: i32 = v2.iter().map(|i| *i as i32).sum();
+            diff_pairs.push((*k1, *k2, (sum1 - sum2).abs() as u32));
         }
     }
     // let total_diff: u32 = diff_pairs.iter().map(|(_,_,n)| n).sum();
     // let avg_diff = total_diff / letter_colors.keys().len() as u32;
 
-    let avg_diff = 80; // TODO make config
+    let avg_diff = 100; // TODO make config
 
     let mut letter_groups: HashMap<char, Vec<char>> = letters
         .iter()

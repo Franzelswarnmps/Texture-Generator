@@ -164,7 +164,7 @@ impl RuleSettings {
         RuleSettings {
             letter_distribution: rng.gen_range(0.0..=1.0),
             letter_distribution_pref: rng.gen_range(1..=5),
-            rules_range: (5, 6),
+            rules_range: (3, 8),
             condition_cell_fill_range: (1, rng.gen_range(1..=5)),
             condition_direction_weight: (0..=8).map(|_| rng.gen_range(1..=3)).collect(),
             condition_direction_chance: rng.gen_range(0.3..0.7),

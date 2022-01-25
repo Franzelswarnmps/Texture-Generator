@@ -2,8 +2,10 @@ mod char_texture;
 mod sprite_gen;
 mod random;
 mod noise;
+mod ui;
 
 use crate::sprite_gen::*;
+use crate::ui::*;
 
 use bevy::{
     //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
@@ -11,11 +13,16 @@ use bevy::{
     render::{camera::Camera, render_resource::{Extent3d, TextureDimension, TextureFormat}},
 };
 
+use bevy_egui::{EguiPlugin};
+
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         //.add_plugin(LogDiagnosticsPlugin::default())
         //.add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(EguiPlugin)
+        .add_system(ui_example)
         .add_startup_system(setup)
         .add_startup_system(texture_setup)
         .add_system(movement)
@@ -30,11 +37,11 @@ fn setup(mut commands: Commands) {
 }
 
 fn movement(
-    time: Res<Time>,
+    //time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     mut camera: Query<&mut Transform, With<Camera>>,
 ) {
-    let speed = 2000. * time.delta_seconds();
+    let speed = 20.;// * time.delta_seconds();
     let mut movement = Vec3::new(0., 0., 0.);
     if keyboard_input.pressed(KeyCode::W) {
         movement += Vec3::new(0., 1., 0.);
@@ -97,12 +104,12 @@ fn texture_setup(
     sprite_gen.randomize();
     sprite_gen.update_texture(&mut texture);
 
-    for rule in sprite_gen.rules.iter() {
-        println!("condition {} action {:?}", rule.condition.to_string(), rule.action);
-    }
-    for (char,color) in sprite_gen.char_color.iter() {
-        println!("color for \"{}\": {:?}",char, color);
-    }
+    // for rule in sprite_gen.rules.iter() {
+    //     println!("condition {} action {:?}", rule.condition.to_string(), rule.action);
+    // }
+    // for (char,color) in sprite_gen.char_color.iter() {
+    //     println!("color for \"{}\": {:?}",char, color);
+    // }
 
     commands.insert_resource(sprite_gen);
 
