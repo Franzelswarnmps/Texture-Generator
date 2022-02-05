@@ -1,4 +1,4 @@
-use crate::{sprite_gen::Rule};
+use crate::{rule::Rule};
 use rand::{
     distributions::WeightedIndex,
     prelude::{Distribution, SliceRandom, ThreadRng},
@@ -164,7 +164,7 @@ impl RuleSettings {
         RuleSettings {
             letter_distribution: rng.gen_range(0.0..=1.0),
             letter_distribution_pref: rng.gen_range(1..=5),
-            rules_range: (3, 8),
+            rules_range: (5, 8),
             condition_cell_fill_range: (1, rng.gen_range(1..=5)),
             condition_direction_weight: (0..=8).map(|_| rng.gen_range(1..=3)).collect(),
             condition_direction_chance: rng.gen_range(0.3..0.7),
@@ -224,7 +224,7 @@ impl RuleSettings {
             // for each action
             let mut location = weighted_index_values(
                 rng,
-                &(0..=8).collect::<Vec<usize>>(),
+                &(1..=9).collect::<Vec<usize>>(),
                 &self.action_direction_weight,
                 1,
             )[0]
@@ -268,7 +268,7 @@ impl RuleSettings {
             }
         }
 
-        Rule::new(condition, actions)
+        Rule::new(&condition, &actions)
     }
 }
 

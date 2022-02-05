@@ -1,10 +1,11 @@
 pub struct CharTexture {
     pub pixels: Vec<char>,
-    pub dimensions: (usize,usize),
+    dimensions: (usize,usize),
+    dimensions_i: (i32,i32),
 }
 
 impl CharTexture {
-    const FILL_CHAR: char = '#';
+    pub const FILL_CHAR: char = '#';
     const OFFSETS_3X3: [(i32,i32);9] = [
         (-1,1),(0,1),(1,1),
         (-1,0),(0,0),(1,0),
@@ -13,9 +14,9 @@ impl CharTexture {
 
     pub fn new(width: usize, height: usize) -> Self {
         Self {
-            //pixels: Vec::with_capacity(width * height * TextureBuilder::CHANNELS),
             pixels: vec![CharTexture::FILL_CHAR;width*height],
             dimensions: (width, height),
+            dimensions_i: (width as i32, height as i32),
         }
     }
 
@@ -44,8 +45,8 @@ impl CharTexture {
     fn out_of_range(&self, x: i32, y: i32) -> bool {
         x < 0 ||
         y < 0 ||
-        x >= self.dimensions.0.try_into().unwrap() || 
-        y >= self.dimensions.1.try_into().unwrap()
+        x >= self.dimensions_i.0 || 
+        y >= self.dimensions_i.1
     }
 
     pub fn index_from_xy(&self, x: usize, y: usize) -> usize {
@@ -56,13 +57,11 @@ impl CharTexture {
         (index % self.dimensions.0, index / self.dimensions.0)
     }
 
-    pub fn stringify(&self,x: usize, y: usize) -> String {
-        let mut result = String::new();
-        for index in self.get_valid_3x3_indices(x,y) {
-            if let Some((abs_x,abs_y)) = index {
-                result.push(self.get(abs_x,abs_y));
-            } else {
-                result.push(CharTexture::FILL_CHAR);
+    pub fn stringify(&self,x: usize, y: usize) -> [char;9] {
+        let mut result = [CharTexture::FILL_CHAR;9];
+        for (index,loc) in self.get_valid_3x3_indices(x,y).into_iter().enumerate() {
+            if let Some((abs_x,abs_y)) = loc {
+                result[index] = self.get(abs_x,abs_y);
             }
         }
         result
@@ -73,11 +72,12 @@ impl CharTexture {
         let mut result = String::with_capacity(size*9);
         for index in 0..size {
             let (x,y) = self.xy_from_index(index);
-            result.push_str(&self.stringify(x,y));
+            result.extend(self.stringify(x,y).iter());
         }
         result
     }
+    
     pub fn get_array(&self) -> & [char] {
-        & self.pixels
+        &self.pixels
     }
 }

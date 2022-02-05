@@ -1,14 +1,13 @@
 
 use std::collections::HashMap;
 
-use lazy_static::lazy_static;
 use rand::seq::SliceRandom;
 use rand::{prelude::ThreadRng, Rng};
-use regex::Regex;
 
 use crate::char_texture::*;
 use crate::noise::*;
 use crate::random::{SpriteSettings, ColorSettings};
+use crate::rule::*;
 
 pub struct SpriteGen {
     pub char_texture: CharTexture,
@@ -31,17 +30,7 @@ impl SpriteGen {
         // apply all rules to all pixels
         let mut rng = rand::thread_rng();
         let input = self.char_texture.full_stringify();
-        let mut indices: Vec<usize> = (0..self.rules.len()).collect();
-        indices.shuffle(&mut rng);
-        for index in indices {
-            let rule = &self.rules[index];
-            let matches = apply_rule(&mut rng, &mut self.char_texture, rule, &input);
-            println!(
-                "rule \"{}\" matches: {}",
-                rule.condition.to_string(),
-                matches
-            );
-        }
+        apply_rules(&mut rng, &mut self.char_texture, &self.rules, &input);
     }
 
     pub fn randomize(&mut self) {
@@ -71,109 +60,22 @@ impl SpriteGen {
     }
 }
 
-#[derive(Clone)]
-pub struct Rule {
-    condition: Regex,
-    action: Vec<RuleAction>,
-    original_action: String,
-    original_condition: String,
-}
-#[derive(Debug,Clone)]
-pub struct RuleAction {
-    pub chance: Option<f32>,
-    pub location: ActionParam,
-    pub value: ActionParam,
-}
-#[derive(Debug,Clone)]
-pub enum ActionParam {
-    Char(char),
-    Index(usize),
-    Wildcard,
-}
+pub fn apply_rules(rng: &mut ThreadRng, texture: &mut CharTexture, rules: &[Rule], input: &str) {
+    let mut rule_indices: Vec<usize> = (0..rules.len()).collect();
+    rule_indices.shuffle(rng);
 
-impl Rule {
-    pub fn new(condition: String, action: String) -> Self {
-        //let regex_bounds = format!("[{}]", CharTexture::BOUNDS_CHAR);
-        Self {
-            //condition: Regex::new(&format!(r"{}{}{}", regex_bounds, condition, regex_bounds)).unwrap(),
-            condition: Regex::new(&condition).unwrap(),
-            action: parse_action(action.clone()),
-            original_action: action,
-            original_condition: condition,
+    for rule_index in rule_indices {
+        for index in 0..texture.pixels.len() {
+            let start_index = index * 9;
+            let end_index = start_index + 9;
+            let match_slice = &input[start_index..end_index];
+    
+            if rules[rule_index].condition().is_match(match_slice) {
+                let (x, y) = texture.xy_from_index(index);
+                apply_actions(texture, rules[rule_index].action(), rng, match_slice, x, y);
+            }
         }
     }
-
-    pub fn update_condition(&mut self, condition: String) {
-        self.condition = Regex::new(&condition).unwrap();
-        self.original_condition = condition;
-    }
-
-    pub fn update_action(&mut self, action: String) {
-        self.action = parse_action(action.clone());
-        self.original_action = action;
-    }
-
-    pub fn get_action(&self) -> &str {
-        self.original_action.as_ref()
-    }
-
-    pub fn get_condition(&self) -> &str {
-        self.original_condition.as_ref()
-    }
-}
-
-fn parse_action(action: String) -> Vec<RuleAction> {
-    lazy_static! {
-        static ref PARSE_ACTION: Regex =
-            Regex::new(r"([A-Z1-9*])([A-Z1-9*])(?:\[([0]?[.][0-9]+)\])?").unwrap();
-    }
-    let mut results = vec![];
-    for caps in PARSE_ACTION.captures_iter(&action) {
-        let chance = caps
-            .get(3)
-            .and_then(|c| Some(c.as_str().parse::<f32>().ok()).flatten());
-        let location = caps[1].chars().next().unwrap();
-        let value = caps[2].chars().next().unwrap();
-
-        let final_location;
-        if location.is_ascii_digit() {
-            final_location = ActionParam::Index(location.to_digit(10).unwrap() as usize);
-        } else if value == '*' {
-            final_location = ActionParam::Wildcard;
-        } else {
-            final_location = ActionParam::Char(location);
-        }
-
-        let final_value;
-        if value.is_ascii_digit() {
-            final_value = ActionParam::Index(value.to_digit(10).unwrap() as usize);
-        } else if value == '*' {
-            final_value = ActionParam::Wildcard;
-        } else {
-            final_value = ActionParam::Char(value);
-        }
-        results.push(RuleAction {
-            chance,
-            location: final_location,
-            value: final_value,
-        })
-    }
-    results
-}
-
-pub fn apply_rule(rng: &mut ThreadRng, texture: &mut CharTexture, rule: &Rule, input: &str) -> u32 {
-    let mut total = 0;
-    for index in 0..texture.pixels.len() {
-        let start_index = index * 9;
-        let end_index = start_index + 9;
-        let match_slice = &input[start_index..end_index];
-        if rule.condition.is_match(match_slice) {
-            total += 1;
-            let (x, y) = texture.xy_from_index(index);
-            apply_action(texture, rule, rng, match_slice, x, y);
-        }
-    }
-    total
 }
 
 /* <location><value>[<chance>]
@@ -186,15 +88,15 @@ pub fn apply_rule(rng: &mut ThreadRng, texture: &mut CharTexture, rule: &Rule, i
     <chance> is a nonnegative decimal such that 1.0 >= chance >= std::f32::MIN_POS_VALUE
     ([A-Z1-9*])([A-Z1-9*])(?:\[([0]?[.][0-9]+)\])?
 */
-fn apply_action(
+fn apply_actions(
     texture: &mut CharTexture,
-    rule: &Rule,
+    actions: &[Action],
     rng: &mut ThreadRng,
     input: &str,
     x: usize,
     y: usize,
 ) {
-    for action in rule.action.iter() {
+    for action in actions {
         if let Some(chance) = action.chance {
             if chance < rng.gen_range(0.0..1.0) {
                 continue; // rng failed, skipping
@@ -212,6 +114,9 @@ fn apply_action(
                 value = input.chars().nth(rng.gen_range(0..9) as usize).unwrap();
             }
         }
+        if value == CharTexture::FILL_CHAR {
+            return;
+        }
 
         let mut indices = vec![false; 9];
         match action.location {
@@ -228,7 +133,7 @@ fn apply_action(
 
         let valid_indices = texture.get_valid_3x3_indices(x, y);
         //println!("value: {}, indices: {:?}, valid indices: {:?}",value, indices, valid_indices);
-        for relative in 0..8 {
+        for relative in 0..9 {
             // ^ gross
             if indices[relative] {
                 if let Some((abs_x, abs_y)) = valid_indices[relative] {

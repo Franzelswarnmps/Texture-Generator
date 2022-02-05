@@ -3,6 +3,7 @@ mod sprite_gen;
 mod random;
 mod noise;
 mod ui;
+mod rule;
 
 use crate::sprite_gen::*;
 use crate::ui::*;
