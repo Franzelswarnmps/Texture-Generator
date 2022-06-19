@@ -91,10 +91,10 @@ impl ColorSettings {
                 accent[1] += rng.gen_range(-self.color_hue_sat_buffer / 2.0..self.color_hue_sat_buffer / 2.0);
                 accent[2] += rng.gen_range(-self.color_hue_sat_buffer / 2.0..self.color_hue_sat_buffer / 2.0);
                 accents.push(accent);
-            }
+            }   
         }
 
-        letters.to_owned().into_iter().zip(
+        letters.iter().copied().zip(
             primaries
                 .into_iter()
                 .chain(accents.into_iter())
@@ -143,11 +143,7 @@ impl SpriteSettings {
         let letters = letter_settings.generate();
 
         let rule_settings = RuleSettings::random(&mut rng);
-        let mut rules: Vec<Rule> = vec![];
-        for _ in 0..rng.gen_range(rule_settings.rules_range.0..rule_settings.rules_range.1) {
-            // make condition and actions for rule
-            rules.push(rule_settings.generate(&mut rng, &letters));
-        }        
+        let rules: Vec<Rule> = rule_settings.generate(&mut rng, &letters);
 
         let color_settings = ColorSettings::random(&mut rng);
         let colors = color_settings.generate(&mut rng, &letters);
@@ -177,7 +173,16 @@ impl RuleSettings {
         }
     }
 
-    pub fn generate(&self, rng: &mut ThreadRng, letters: &[char]) -> Rule {
+    pub fn generate(&self, rng: &mut ThreadRng, letters: &[char]) -> Vec<Rule> {
+        let mut rules = vec![];
+        for _ in 0..rng.gen_range(self.rules_range.0..self.rules_range.1) {
+            // make condition and actions for rule
+            rules.push(self.generate_single(rng, letters));
+        }
+        rules
+    }
+
+    pub fn generate_single(&self, rng: &mut ThreadRng, letters: &[char]) -> Rule {
         // generate condition
         let num_letters = rng.gen_range(1..=letters.len()/2);
         let condition_letters: Vec<char> = weighted_values(

@@ -56,11 +56,16 @@ impl Rule {
 
     /// Set the rule's condition.
     pub fn set_condition(&mut self, condition: &str) {
+        self.original_condition = condition.to_owned();
         self.condition = Rule::parse_condition(condition);
     }
 
     fn parse_condition(condition: &str) -> Regex {
-        Regex::new(condition).unwrap()
+        if let Ok(new_regex) = Regex::new(condition) {
+            new_regex
+        } else {
+            Regex::new("").unwrap()
+        }
     }
 
     fn parse_action(action: &str) -> Vec<Action> {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, vec};
+use std::{collections::{BTreeMap}, vec};
 
 use crate::sprite_gen::SpriteGen;
 use noise::{utils::*, *};
@@ -171,7 +171,7 @@ fn random_noise(sprite: &mut SpriteGen) -> NoiseMap {
 
     let mut last_layer: Vec<GeneratedNoise> = vec![];
     let layer_settings = GeneratedNoiseSettings {
-        size: sprite.dimensions,
+        size: sprite.char_texture.dimensions,
         x_bounds: (-3.,3.),
         y_bounds: (-3.,3.),
     };
@@ -234,7 +234,7 @@ pub fn noise_fill(sprite: &mut SpriteGen) {
 
 fn noise_plateau(
     rng: &mut ThreadRng,
-    letter_colors: &HashMap<char, [u8; 4]>,
+    letter_colors: &BTreeMap<char, [u8; 4]>,
 ) -> Vec<(f64, Vec<char>)> {
     let letters: Vec<char> = letter_colors.keys().map(|s| s.to_owned()).collect();
 
@@ -251,7 +251,7 @@ fn noise_plateau(
 
     let avg_diff = 100; // TODO make config
 
-    let mut letter_groups: HashMap<char, Vec<char>> = letters
+    let mut letter_groups: BTreeMap<char, Vec<char>> = letters
         .iter()
         .map(|l| (l.to_owned(), vec![l.to_owned()]))
         .collect();

@@ -1,19 +1,17 @@
-
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use rand::seq::SliceRandom;
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::char_texture::*;
 use crate::noise::*;
-use crate::random::{SpriteSettings, ColorSettings};
+use crate::random::{ColorSettings, RuleSettings, SpriteSettings};
 use crate::rule::*;
 
 pub struct SpriteGen {
     pub char_texture: CharTexture,
     pub rules: Vec<Rule>,
-    pub dimensions: (usize, usize),
-    pub char_color: HashMap<char, [u8; 4]>,
+    pub char_color: BTreeMap<char, [u8; 4]>,
 }
 
 impl SpriteGen {
@@ -21,8 +19,7 @@ impl SpriteGen {
         Self {
             char_texture: CharTexture::new(width, height),
             rules: vec![],
-            dimensions: (width, height),
-            char_color: HashMap::new(),
+            char_color: BTreeMap::new(),
         }
     }
 
@@ -45,18 +42,41 @@ impl SpriteGen {
         let mut rng = rand::thread_rng();
         let letters: Vec<char> = self.char_color.keys().map(|c| c.to_owned()).collect();
         let color_settings = ColorSettings::random(&mut rng);
-        self.char_color = color_settings.generate(&mut rng, &letters).into_iter().collect();
+        self.char_color = color_settings
+            .generate(&mut rng, &letters)
+            .into_iter()
+            .collect();
     }
 
-    pub fn update_texture(&self, texture: &mut Vec<u8>) {
+    pub fn randomize_rules(&mut self) {
+        let mut rng = rand::thread_rng();
+        let letters: Vec<char> = self.char_color.keys().map(|c| c.to_owned()).collect();
+        let rule_settings = RuleSettings::random(&mut rng);
+        self.rules = rule_settings.generate(&mut rng, &letters);
+    }
+
+    pub fn update_texture(&self, texture: &mut [u8]) {
         for (index, char) in self.char_texture.get_array().iter().enumerate() {
             let offset_index = index * 4;
             for channel in 0..3 {
                 if let Some(color_channels) = self.char_color.get(char) {
                     texture[offset_index + channel] = color_channels[channel];
+                } else {
+                    // if no color, make transparent
+                    texture[offset_index + channel] = 0;
                 }
             }
         }
+    }
+
+    pub fn set_changed(&mut self) {
+        self.char_texture.changed = true;
+    }
+
+    pub fn clear(&mut self) {
+        self.char_texture.clear();
+        self.rules.clear();
+        self.char_color.clear();
     }
 }
 
@@ -65,14 +85,17 @@ pub fn apply_rules(rng: &mut ThreadRng, texture: &mut CharTexture, rules: &[Rule
     rule_indices.shuffle(rng);
 
     for rule_index in rule_indices {
-        for index in 0..texture.pixels.len() {
-            let start_index = index * 9;
-            let end_index = start_index + 9;
-            let match_slice = &input[start_index..end_index];
+        let rule = &rules[rule_index];
+        if !rule.original_condition().is_empty() {
+            for index in 0..texture.pixels.len() {
+                let start_index = index * 9;
+                let end_index = start_index + 9;
+                let match_slice = &input[start_index..end_index];
     
-            if rules[rule_index].condition().is_match(match_slice) {
-                let (x, y) = texture.xy_from_index(index);
-                apply_actions(texture, rules[rule_index].action(), rng, match_slice, x, y);
+                if rule.condition().is_match(match_slice) {
+                    let (x, y) = texture.xy_from_index(index);
+                    apply_actions(texture, rules[rule_index].action(), rng, match_slice, x, y);
+                }
             }
         }
     }
@@ -102,18 +125,11 @@ fn apply_actions(
                 continue; // rng failed, skipping
             }
         }
-        let value;
-        match action.value {
-            ActionParam::Char(c) => {
-                value = c;
-            }
-            ActionParam::Index(i) => {
-                value = input.chars().nth(i - 1).unwrap();
-            }
-            ActionParam::Wildcard => {
-                value = input.chars().nth(rng.gen_range(0..9) as usize).unwrap();
-            }
-        }
+        let value = match action.value {
+            ActionParam::Char(c) => c,
+            ActionParam::Index(i) => input.chars().nth(i - 1).unwrap(),
+            ActionParam::Wildcard => input.chars().nth(rng.gen_range(0..9) as usize).unwrap(),
+        };
         if value == CharTexture::FILL_CHAR {
             return;
         }
