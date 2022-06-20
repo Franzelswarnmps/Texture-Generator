@@ -1,6 +1,6 @@
 use std::{time::Instant, io::Cursor};
 
-use crate::{noise::noise_fill, rule::Rule, MainTexture, sprite_gen::SpriteGen};
+use crate::{noise::noise_fill, rule::Rule, MainTexture, sprite_gen::SpriteGen, save_and_load::{texture_to_png_base64, serialize_config, deserialize_config}};
 use bevy::{input::mouse::MouseWheel, prelude::*};
 use bevy_egui::{
     egui::{self, color::Hsva, Align2, ScrollArea, Slider},
@@ -20,6 +20,8 @@ pub struct UiContext {
     pub update_texture_dimensions: bool,
 
     pub saved_image: String,
+    pub config_export: String,
+    pub config_import: String,
 }
 
 impl UiContext {
@@ -33,7 +35,10 @@ impl UiContext {
             update_texture_dimensions: false,
             delay: 0,
             delay_start: Instant::now(),
+
             saved_image: "".into(),
+            config_export: "".into(),
+            config_import: "".into(),
         }
     }
 }
@@ -152,38 +157,34 @@ pub fn egui(
         .default_width(140.0)
         .show(egui_ctx.ctx_mut(), |ui| {
             ui.horizontal(|ui| {
-                if ui.button("Save").clicked() {
+                if ui.button("Save Image").clicked() {
                     let width = sprite_gen.char_texture.dimensions.0;
                     let height = sprite_gen.char_texture.dimensions.1;
                     let mut data = vec![255u8; width * height * 4];
                     sprite_gen.update_texture(&mut data);
-
-                    let mut output: Vec<u8> = Vec::new();
-                    let mut cursor = Cursor::new(&mut output);
-                    if image::write_buffer_with_format(
-                        &mut cursor,
-                        &data,
-                        width.try_into().unwrap(),
-                        height.try_into().unwrap(),
-                        image::ColorType::Rgba8,
-                        image::ImageFormat::Png
-                    ).is_err() {
-                        println!("failed to save image");
-                    };
-
-                    ui_context.saved_image = format!("{}{}","data:image/png;base64,",base64::encode(output));
+                    ui_context.saved_image = texture_to_png_base64(data,width,height);
                 }
                 ui.text_edit_singleline(&mut ui_context.saved_image);
             });
 
             ui.separator();
 
-            if ui.button("Export Rules & Colors").clicked() {
-                println!("random");
-            }
-            if ui.button("Import Rules & Colors").clicked() {
-                println!("random");
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Export Config").clicked() {
+                    ui_context.config_export = serialize_config(&sprite_gen.rules, &sprite_gen.char_color);
+                }
+                ui.text_edit_singleline(&mut ui_context.config_export);
+            });
+
+            ui.horizontal(|ui| {
+                if ui.button("Import Config").clicked() {
+                    if let Some((rules, colors)) = deserialize_config(&ui_context.config_import) {
+                        sprite_gen.rules = rules;
+                        sprite_gen.char_color = colors;
+                    }
+                }
+                ui.text_edit_singleline(&mut ui_context.config_import);
+            });
 
             ui.separator();
 

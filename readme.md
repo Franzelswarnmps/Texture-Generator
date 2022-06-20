@@ -11,7 +11,7 @@ todo
 * [DONE] speed limit
 * [DONE] change canvas size
 * [DONE] export, base64 png string
-* copy/paste config
+* [DONE] copy/paste config
 
 * write user guide
 * add to github pages site

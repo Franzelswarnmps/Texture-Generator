@@ -5,6 +5,7 @@ mod random;
 mod rule;
 mod sprite_gen;
 mod ui;
+mod save_and_load;
 
 use crate::sprite_gen::*;
 use crate::ui::*;
