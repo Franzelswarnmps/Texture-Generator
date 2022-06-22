@@ -1,4 +1,4 @@
-use std::{collections::{BTreeMap}, vec};
+use std::{collections::BTreeMap, vec};
 
 use crate::sprite_gen::SpriteGen;
 use noise::{utils::*, *};
@@ -8,7 +8,10 @@ use rand::{
     Rng,
 };
 /*
-random number of generators. repeats fine, random seeds
+NOTE: intermediary steps computed outside of the noise crate to because of
+the API structure making chaining difficult
+
+random number of generators, repeats allowed, random seeds
 random number of modifiers, applied to random generators, repeats allowed
 random number of combiners, applied to random generators, nesting allowed
 blend everything
@@ -50,17 +53,17 @@ output = output_start + round(slope * (input - input_start))
 fn map_range(scale: f64, dest_start: f64, value: f64) -> f64 {
     dest_start + scale * value
 }
-fn map_range_scale(source_range: (f64,f64), dest_range: (f64,f64)) -> f64 {
+fn map_range_scale(source_range: (f64, f64), dest_range: (f64, f64)) -> f64 {
     let source_len = source_range.1 - source_range.0;
     let dest_len = dest_range.1 - dest_range.0;
     dest_len / source_len
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 struct GeneratedNoiseSettings {
-    size: (usize,usize),
-    x_bounds: (f64,f64),
-    y_bounds: (f64,f64),
+    size: (usize, usize),
+    x_bounds: (f64, f64),
+    y_bounds: (f64, f64),
 }
 
 struct GeneratedNoise {
@@ -95,8 +98,8 @@ impl GeneratedNoise {
                 }
             }
         }
-        let dest_range = (min,max);
-        let range_scale = map_range_scale((current_min,current_max), dest_range);
+        let dest_range = (min, max);
+        let range_scale = map_range_scale((current_min, current_max), dest_range);
         // map to new range
         for y in 0..self.noise.size().1 {
             for x in 0..self.noise.size().0 {
@@ -129,7 +132,10 @@ fn random_generator(rng: &mut ThreadRng, settings: GeneratedNoiseSettings) -> Ge
         2 => GeneratedNoise::from_noise(&Fbm::new().set_seed(rng.gen()), settings),
         3 => GeneratedNoise::from_noise(&Billow::new().set_seed(rng.gen()), settings),
         4 => GeneratedNoise::from_noise(&Checkerboard::new(rng.gen_range(1..10)), settings),
-        5 => GeneratedNoise::from_noise(&Cylinders::new().set_frequency(rng.gen_range(0.1..10.0)), settings),
+        5 => GeneratedNoise::from_noise(
+            &Cylinders::new().set_frequency(rng.gen_range(0.1..10.0)),
+            settings,
+        ),
         6 => GeneratedNoise::from_noise(&OpenSimplex::new().set_seed(rng.gen()), settings),
         7 => GeneratedNoise::from_noise(&SuperSimplex::new().set_seed(rng.gen()), settings),
         8 => GeneratedNoise::from_noise(&Value::new().set_seed(rng.gen()), settings),
@@ -137,14 +143,28 @@ fn random_generator(rng: &mut ThreadRng, settings: GeneratedNoiseSettings) -> Ge
     }
 }
 
-fn random_modifier(rng: &mut ThreadRng, source: &dyn NoiseFn<[f64; 3]>, settings: GeneratedNoiseSettings) 
--> GeneratedNoise {
+fn random_modifier(
+    rng: &mut ThreadRng,
+    source: &dyn NoiseFn<[f64; 3]>,
+    settings: GeneratedNoiseSettings,
+) -> GeneratedNoise {
     match rng.gen_range(0..=4) {
         0 => GeneratedNoise::from_noise(&Abs::new(source), settings),
-        1 => GeneratedNoise::from_noise(&Clamp::new(source).set_bounds(rng.gen_range(-1.0..0.0), rng.gen_range(0.0..1.0),), settings),
-        2 => GeneratedNoise::from_noise(&Exponent::new(source).set_exponent(rng.gen_range(0.1..2.0)), settings),
+        1 => GeneratedNoise::from_noise(
+            &Clamp::new(source).set_bounds(rng.gen_range(-1.0..0.0), rng.gen_range(0.0..1.0)),
+            settings,
+        ),
+        2 => GeneratedNoise::from_noise(
+            &Exponent::new(source).set_exponent(rng.gen_range(0.1..2.0)),
+            settings,
+        ),
         3 => GeneratedNoise::from_noise(&Negate::new(source), settings),
-        4 => GeneratedNoise::from_noise(&ScaleBias::new(source).set_scale(rng.gen_range(0.1..3.0)).set_bias(rng.gen_range(0.0..1.0)), settings),
+        4 => GeneratedNoise::from_noise(
+            &ScaleBias::new(source)
+                .set_scale(rng.gen_range(0.1..3.0))
+                .set_bias(rng.gen_range(0.0..1.0)),
+            settings,
+        ),
         _ => panic!("random modifier range wrong"),
     }
 }
@@ -152,16 +172,16 @@ fn random_modifier(rng: &mut ThreadRng, source: &dyn NoiseFn<[f64; 3]>, settings
 fn random_combiner(
     rng: &mut ThreadRng,
     source1: &dyn NoiseFn<[f64; 3]>,
-    source2: &dyn NoiseFn<[f64; 3]>, 
-    settings: GeneratedNoiseSettings) 
-    -> GeneratedNoise {
+    source2: &dyn NoiseFn<[f64; 3]>,
+    settings: GeneratedNoiseSettings,
+) -> GeneratedNoise {
     match rng.gen_range(0..=4) {
         0 => GeneratedNoise::from_noise(&Add::new(source1, source2), settings),
         1 => GeneratedNoise::from_noise(&Max::new(source1, source2), settings),
         2 => GeneratedNoise::from_noise(&Min::new(source1, source2), settings),
         3 => GeneratedNoise::from_noise(&Multiply::new(source1, source2), settings),
         4 => GeneratedNoise::from_noise(&Power::new(source1, source2), settings),
-        _ => panic!("random modifier range wrong"),
+        _ => panic!("random combiner range wrong"),
     }
 }
 
@@ -172,8 +192,8 @@ fn random_noise(sprite: &mut SpriteGen) -> NoiseMap {
     let mut last_layer: Vec<GeneratedNoise> = vec![];
     let layer_settings = GeneratedNoiseSettings {
         size: sprite.char_texture.dimensions,
-        x_bounds: (-3.,3.),
-        y_bounds: (-3.,3.),
+        x_bounds: (-3., 3.),
+        y_bounds: (-3., 3.),
     };
 
     // generators
@@ -184,28 +204,48 @@ fn random_noise(sprite: &mut SpriteGen) -> NoiseMap {
 
     // main layer loop
     while last_layer.len() > 1 {
-        let mut next_layer= vec![];
+        let mut next_layer = vec![];
 
         // combine
         let mut used_indices = vec![false; last_layer.len()];
-        while next_layer.len() < last_layer.len() && rng.gen_range(0.0..1.0) < settings.combine_chance {
+        while next_layer.len() < last_layer.len()
+            && rng.gen_range(0.0..1.0) < settings.combine_chance
+        {
             let source1_index = rng.gen_range(0..last_layer.len());
             let source2_index = rng.gen_range(0..last_layer.len());
             used_indices[source1_index] = true;
             used_indices[source2_index] = true;
-            next_layer.push(random_combiner(&mut rng, &last_layer[source1_index], &last_layer[source2_index], layer_settings));
+            next_layer.push(random_combiner(
+                &mut rng,
+                &last_layer[source1_index],
+                &last_layer[source2_index],
+                layer_settings,
+            ));
         }
 
         // any not used, chance for modify
-        for unused_index in (0..last_layer.len()).zip(used_indices.clone()).filter(|(_, i)| !*i).map(|(g, _)| g) {
+        for unused_index in (0..last_layer.len())
+            .zip(used_indices.clone())
+            .filter(|(_, i)| !*i)
+            .map(|(g, _)| g)
+        {
             if rng.gen_range(0.0..1.0) < settings.modify_chance {
                 used_indices[unused_index] = true;
-                next_layer.push(random_modifier(&mut rng, &last_layer[unused_index], layer_settings));
+                next_layer.push(random_modifier(
+                    &mut rng,
+                    &last_layer[unused_index],
+                    layer_settings,
+                ));
             }
         }
 
         //carryover unused
-        for unused in last_layer.into_iter().zip(used_indices).filter(|(_, i)| !*i).map(|(g, _)| g) {
+        for unused in last_layer
+            .into_iter()
+            .zip(used_indices)
+            .filter(|(_, i)| !*i)
+            .map(|(g, _)| g)
+        {
             next_layer.push(unused);
         }
         last_layer = next_layer;

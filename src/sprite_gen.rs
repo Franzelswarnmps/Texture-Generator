@@ -4,9 +4,9 @@ use rand::seq::SliceRandom;
 use rand::{prelude::ThreadRng, Rng};
 
 use crate::char_texture::*;
-use crate::noise::*;
-use crate::random::{ColorSettings, RuleSettings, SpriteSettings};
+use crate::random_rules::{ColorSettings, RuleSettings, SpriteSettings};
 use crate::rule::*;
+use crate::texture_noise::*;
 
 pub struct SpriteGen {
     pub char_texture: CharTexture,
@@ -23,8 +23,8 @@ impl SpriteGen {
         }
     }
 
+    // apply all rules to all pixels
     pub fn apply(&mut self) {
-        // apply all rules to all pixels
         let mut rng = rand::thread_rng();
         let input = self.char_texture.full_stringify();
         apply_rules(&mut rng, &mut self.char_texture, &self.rules, &input);
@@ -73,10 +73,8 @@ impl SpriteGen {
         self.char_texture.changed = true;
     }
 
-    pub fn clear(&mut self) {
-        self.char_texture.clear();
-        self.rules.clear();
-        self.char_color.clear();
+    pub fn is_changed(&self) -> bool {
+        self.char_texture.changed
     }
 }
 
@@ -91,7 +89,7 @@ pub fn apply_rules(rng: &mut ThreadRng, texture: &mut CharTexture, rules: &[Rule
                 let start_index = index * 9;
                 let end_index = start_index + 9;
                 let match_slice = &input[start_index..end_index];
-    
+
                 if rule.condition().is_match(match_slice) {
                     let (x, y) = texture.xy_from_index(index);
                     apply_actions(texture, rules[rule_index].action(), rng, match_slice, x, y);
@@ -131,6 +129,7 @@ fn apply_actions(
             ActionParam::Wildcard => input.chars().nth(rng.gen_range(0..9) as usize).unwrap(),
         };
         if value == CharTexture::FILL_CHAR {
+            // never propagate FILL_CHAR
             return;
         }
 
@@ -150,7 +149,6 @@ fn apply_actions(
         let valid_indices = texture.get_valid_3x3_indices(x, y);
         //println!("value: {}, indices: {:?}, valid indices: {:?}",value, indices, valid_indices);
         for relative in 0..9 {
-            // ^ gross
             if indices[relative] {
                 if let Some((abs_x, abs_y)) = valid_indices[relative] {
                     texture.set(abs_x, abs_y, value);

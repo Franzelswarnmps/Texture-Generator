@@ -1,4 +1,4 @@
-use crate::{rule::Rule};
+use crate::rule::Rule;
 use rand::{
     distributions::WeightedIndex,
     prelude::{Distribution, SliceRandom, ThreadRng},
@@ -57,104 +57,6 @@ pub struct RuleSettings {
     pub action_wildcard_chance: f32,
 }
 
-pub struct ColorSettings {
-    pub color_primary_accent_ratio: f32,
-    pub color_hue_sat_buffer: f32,
-}
-
-impl ColorSettings {
-    pub fn random(rng: &mut ThreadRng) -> ColorSettings {
-        ColorSettings {
-            color_primary_accent_ratio: rng.gen_range(0.05..0.1),
-            color_hue_sat_buffer: 0.1,
-        }
-    }
-
-    pub fn generate(&self, rng: &mut ThreadRng, letters: &[char]) -> Vec<(char, [u8; 4])> {
-        let mut primaries: Vec<[f32; 3]> = vec![];
-        let mut accents: Vec<[f32; 3]> = vec![];
-
-        //color_primary_accent_ratio: rng.gen_range(0.1..1.0),
-        //color_accent_max_offset: rng.gen_range(0..100),
-        let primary_hue_sat_range = self.color_hue_sat_buffer..1.0 - self.color_hue_sat_buffer;
-        for _ in 0..letters.len() {
-            if primaries.is_empty() || rng.gen_range(0.0..1.0) < self.color_primary_accent_ratio {
-                // primary
-                primaries.push([
-                    rng.gen_range(0.0..360.0),
-                    rng.gen_range(primary_hue_sat_range.clone()),
-                    rng.gen_range(primary_hue_sat_range.clone()),
-                ]);
-            } else {
-                // accent, modify an existing color
-                let mut accent = *primaries.choose(rng).unwrap();
-                accent[1] += rng.gen_range(-self.color_hue_sat_buffer / 2.0..self.color_hue_sat_buffer / 2.0);
-                accent[2] += rng.gen_range(-self.color_hue_sat_buffer / 2.0..self.color_hue_sat_buffer / 2.0);
-                accents.push(accent);
-            }   
-        }
-
-        letters.iter().copied().zip(
-            primaries
-                .into_iter()
-                .chain(accents.into_iter())
-                .map(|c| Color::hsl(c[0], c[1], c[2]).as_rgba().as_rgba_f32())
-                .map(|r| {
-                    [
-                        ((r[0] * 255.0).round() as u8),
-                        ((r[1] * 255.0).round() as u8),
-                        ((r[2] * 255.0).round() as u8),
-                        255,
-                    ]
-                }),
-        ).collect()
-    }
-}
-
-pub struct LetterSettings {
-    num_letters: usize,
-}
-
-impl LetterSettings {
-    pub fn random(rng: &mut ThreadRng) -> Self{
-        Self {
-            num_letters: rng.gen_range(6..=26),
-        }
-    }
-
-    pub fn generate(&self) -> Vec<char> {
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[0..self.num_letters]
-            .chars()
-            .into_iter()
-            .collect()
-    }
-}
-
-pub struct SpriteSettings {
-    pub rules: Vec<Rule>,
-    pub colors: Vec<(char, [u8; 4])>,
-}
-
-impl SpriteSettings {
-    pub fn random() -> Self {
-        let mut rng = rand::thread_rng();
-
-        let letter_settings = LetterSettings::random(&mut rng);
-        let letters = letter_settings.generate();
-
-        let rule_settings = RuleSettings::random(&mut rng);
-        let rules: Vec<Rule> = rule_settings.generate(&mut rng, &letters);
-
-        let color_settings = ColorSettings::random(&mut rng);
-        let colors = color_settings.generate(&mut rng, &letters);
-
-        Self { 
-            rules,
-            colors,
-        }
-    }
-}
-
 impl RuleSettings {
     pub fn random(rng: &mut ThreadRng) -> RuleSettings {
         RuleSettings {
@@ -184,7 +86,7 @@ impl RuleSettings {
 
     pub fn generate_single(&self, rng: &mut ThreadRng, letters: &[char]) -> Rule {
         // generate condition
-        let num_letters = rng.gen_range(1..=letters.len()/2);
+        let num_letters = rng.gen_range(1..=letters.len() / 2);
         let condition_letters: Vec<char> = weighted_values(
             rng,
             letters,
@@ -217,8 +119,7 @@ impl RuleSettings {
             condition = format!(
                 //r"(?:[{}][^{}{}]*){{{}}}",
                 r"(?:[{}].*){{{}}}",
-                combined_letters,
-                condition_cell_fill
+                combined_letters, condition_cell_fill
             );
         }
 
@@ -274,6 +175,108 @@ impl RuleSettings {
         }
 
         Rule::new(&condition, &actions)
+    }
+}
+
+pub struct ColorSettings {
+    pub color_primary_accent_ratio: f32,
+    pub color_hue_sat_buffer: f32,
+}
+
+impl ColorSettings {
+    pub fn random(rng: &mut ThreadRng) -> ColorSettings {
+        ColorSettings {
+            color_primary_accent_ratio: rng.gen_range(0.05..0.1),
+            color_hue_sat_buffer: 0.1,
+        }
+    }
+
+    pub fn generate(&self, rng: &mut ThreadRng, letters: &[char]) -> Vec<(char, [u8; 4])> {
+        let mut primaries: Vec<[f32; 3]> = vec![];
+        let mut accents: Vec<[f32; 3]> = vec![];
+
+        //color_primary_accent_ratio: rng.gen_range(0.1..1.0),
+        //color_accent_max_offset: rng.gen_range(0..100),
+        let primary_hue_sat_range = self.color_hue_sat_buffer..1.0 - self.color_hue_sat_buffer;
+        for _ in 0..letters.len() {
+            if primaries.is_empty() || rng.gen_range(0.0..1.0) < self.color_primary_accent_ratio {
+                // primary
+                primaries.push([
+                    rng.gen_range(0.0..360.0),
+                    rng.gen_range(primary_hue_sat_range.clone()),
+                    rng.gen_range(primary_hue_sat_range.clone()),
+                ]);
+            } else {
+                // accent, modify an existing color
+                let mut accent = *primaries.choose(rng).unwrap();
+                accent[1] += rng
+                    .gen_range(-self.color_hue_sat_buffer / 2.0..self.color_hue_sat_buffer / 2.0);
+                accent[2] += rng
+                    .gen_range(-self.color_hue_sat_buffer / 2.0..self.color_hue_sat_buffer / 2.0);
+                accents.push(accent);
+            }
+        }
+
+        // hsl to rgb
+        letters
+            .iter()
+            .copied()
+            .zip(
+                primaries
+                    .into_iter()
+                    .chain(accents.into_iter())
+                    .map(|c| Color::hsl(c[0], c[1], c[2]).as_rgba().as_rgba_f32())
+                    .map(|r| {
+                        [
+                            ((r[0] * 255.0).round() as u8),
+                            ((r[1] * 255.0).round() as u8),
+                            ((r[2] * 255.0).round() as u8),
+                            255,
+                        ]
+                    }),
+            )
+            .collect()
+    }
+}
+
+pub struct LetterSettings {
+    num_letters: usize,
+}
+
+impl LetterSettings {
+    pub fn random(rng: &mut ThreadRng) -> Self {
+        Self {
+            num_letters: rng.gen_range(6..=26),
+        }
+    }
+
+    pub fn generate(&self) -> Vec<char> {
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[0..self.num_letters]
+            .chars()
+            .into_iter()
+            .collect()
+    }
+}
+
+pub struct SpriteSettings {
+    pub rules: Vec<Rule>,
+    pub colors: Vec<(char, [u8; 4])>,
+}
+
+impl SpriteSettings {
+    pub fn random() -> Self {
+        let mut rng = rand::thread_rng();
+
+        let letter_settings = LetterSettings::random(&mut rng);
+        let letters = letter_settings.generate();
+
+        let rule_settings = RuleSettings::random(&mut rng);
+        let rules: Vec<Rule> = rule_settings.generate(&mut rng, &letters);
+
+        let color_settings = ColorSettings::random(&mut rng);
+        let colors = color_settings.generate(&mut rng, &letters);
+
+        Self { rules, colors }
     }
 }
 

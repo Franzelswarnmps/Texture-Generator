@@ -1,4 +1,4 @@
-use crate::{MainTexture, ui::UiContext, char_texture::CharTexture};
+use crate::{char_texture::CharTexture, texture_display::MainTexture, ui::UiContext};
 use bevy::{prelude::*, render::camera::RenderTarget};
 
 pub fn paint(
@@ -10,7 +10,7 @@ pub fn paint(
     windows: Res<Windows>,
     camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 ) {
-    ui_context.currently_painting = mouse_button_input.pressed(MouseButton::Left); 
+    ui_context.currently_painting = mouse_button_input.pressed(MouseButton::Left);
     if !ui_context.currently_painting || cursor_moved_events.is_empty() {
         if !ui_context.currently_painting {
             ui_context.last_paint_point = None;
@@ -25,17 +25,23 @@ pub fn paint(
 
     let mut previous_pixel = ui_context.last_paint_point;
     for event in cursor_moved_events.iter() {
-        let mouse_loc = get_cursor_world_coordinates(event.position,&windows, &camera);
+        let mouse_loc = get_cursor_world_coordinates(event.position, &windows, &camera);
         //println!("mouse loc: [{},{}]",mouse_loc.x,mouse_loc.y);
         let relative_x = mouse_loc.x - sprite_loc.x + sprite_size.x / 2.;
         let relative_y = -(mouse_loc.y - sprite_loc.y - sprite_size.y / 2.);
 
         let current_pixel_x = relative_x / sprite_size.x * sprite_x as f32;
         let current_pixel_y = relative_y / sprite_size.y * sprite_y as f32;
-        let current_pixel = Vec2::new(current_pixel_x,current_pixel_y);
+        let current_pixel = Vec2::new(current_pixel_x, current_pixel_y);
         //println!("pixel loc: [{},{}]",current_pixel.x,current_pixel.y);
 
-        paint_line(previous_pixel.unwrap_or(current_pixel),current_pixel,ui_context.paint_letter,ui_context.paint_radius as i32, &mut main_texture.sprite_gen.char_texture);
+        paint_line(
+            previous_pixel.unwrap_or(current_pixel),
+            current_pixel,
+            ui_context.paint_letter,
+            ui_context.paint_radius as i32,
+            &mut main_texture.sprite_gen.char_texture,
+        );
         previous_pixel = Some(current_pixel);
     }
 
@@ -50,7 +56,8 @@ fn paint_line(start: Vec2, end: Vec2, letter: char, radius: i32, texture: &mut C
         last_distance_squared = current_pixel.distance_squared(end);
         for x in -radius..radius {
             for y in -radius..radius {
-                let circle_pixel: Vec2 = (current_pixel.x + x as f32, current_pixel.y + y as f32).into();
+                let circle_pixel: Vec2 =
+                    (current_pixel.x + x as f32, current_pixel.y + y as f32).into();
                 if current_pixel.distance_squared(circle_pixel) < radius.pow(2) as f32 {
                     let final_x = circle_pixel.x as i32;
                     let final_y = circle_pixel.y as i32;

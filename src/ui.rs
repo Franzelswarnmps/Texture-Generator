@@ -1,6 +1,12 @@
-use std::{time::Instant, io::Cursor};
+use std::time::Instant;
 
-use crate::{noise::noise_fill, rule::Rule, MainTexture, sprite_gen::SpriteGen, save_and_load::{texture_to_png_base64, serialize_config, deserialize_config}};
+use crate::{
+    rule::Rule,
+    save_and_load::{deserialize_config, serialize_config, texture_to_png_base64},
+    sprite_gen::SpriteGen,
+    texture_display::MainTexture,
+    texture_noise::noise_fill,
+};
 use bevy::{input::mouse::MouseWheel, prelude::*};
 use bevy_egui::{
     egui::{self, color::Hsva, Align2, ScrollArea, Slider},
@@ -16,7 +22,7 @@ pub struct UiContext {
     pub delay: u64,
     pub delay_start: Instant,
 
-    pub texture_dimensions: (usize,usize),
+    pub texture_dimensions: (usize, usize),
     pub update_texture_dimensions: bool,
 
     pub saved_image: String,
@@ -31,7 +37,7 @@ impl UiContext {
             paint_radius: 10,
             currently_painting: false,
             last_paint_point: None,
-            texture_dimensions: (0,0),
+            texture_dimensions: (0, 0),
             update_texture_dimensions: false,
             delay: 0,
             delay_start: Instant::now(),
@@ -51,10 +57,11 @@ pub fn keybinds(
     mut camera: Query<(&mut Transform, &mut OrthographicProjection), With<Camera>>,
     mut main_texture: ResMut<MainTexture>,
 ) {
-    if egui_ctx.ctx_mut().wants_keyboard_input() 
-    || egui_ctx.ctx_mut().wants_pointer_input() 
-    || egui_ctx.ctx_mut().is_using_pointer() 
-    || egui_ctx.ctx_mut().is_pointer_over_area() {
+    if egui_ctx.ctx_mut().wants_keyboard_input()
+        || egui_ctx.ctx_mut().wants_pointer_input()
+        || egui_ctx.ctx_mut().is_using_pointer()
+        || egui_ctx.ctx_mut().is_pointer_over_area()
+    {
         return;
     }
 
@@ -95,7 +102,7 @@ pub fn keybinds(
     //actions
 
     if keyboard_input.pressed(KeyCode::Space) {
-        run(&mut ui_context,&mut main_texture.sprite_gen);
+        apply_rules(&mut ui_context, &mut main_texture.sprite_gen);
     }
 
     if keyboard_input.just_pressed(KeyCode::C) {
@@ -162,7 +169,7 @@ pub fn egui(
                     let height = sprite_gen.char_texture.dimensions.1;
                     let mut data = vec![255u8; width * height * 4];
                     sprite_gen.update_texture(&mut data);
-                    ui_context.saved_image = texture_to_png_base64(data,width,height);
+                    ui_context.saved_image = texture_to_png_base64(data, width, height);
                 }
                 ui.text_edit_singleline(&mut ui_context.saved_image);
             });
@@ -171,7 +178,8 @@ pub fn egui(
 
             ui.horizontal(|ui| {
                 if ui.button("Export Config").clicked() {
-                    ui_context.config_export = serialize_config(&sprite_gen.rules, &sprite_gen.char_color);
+                    ui_context.config_export =
+                        serialize_config(&sprite_gen.rules, &sprite_gen.char_color);
                 }
                 ui.text_edit_singleline(&mut ui_context.config_export);
             });
@@ -188,7 +196,6 @@ pub fn egui(
 
             ui.separator();
 
-
             if ui.button("Randomize All (R)").clicked() {
                 sprite_gen.randomize();
             }
@@ -202,7 +209,7 @@ pub fn egui(
                 sprite_gen.randomize_rules();
             }
             if ui.button("Run (Space)").clicked() {
-                run(&mut ui_context,sprite_gen);
+                apply_rules(&mut ui_context, sprite_gen);
             }
 
             ui.separator();
@@ -275,7 +282,7 @@ pub fn egui(
 
             let mut colors_changed = false;
             ScrollArea::vertical()
-            .max_height(ui.available_height())
+                .max_height(ui.available_height())
                 .auto_shrink([false; 2])
                 .show(ui, |ui| {
                     ui.vertical(|ui| {
@@ -316,7 +323,7 @@ pub fn egui(
         });
 }
 
-fn run(ui_context: &mut UiContext, sprite_gen: &mut SpriteGen) {
+fn apply_rules(ui_context: &mut UiContext, sprite_gen: &mut SpriteGen) {
     if ui_context.delay < 1 {
         sprite_gen.apply();
     } else if ui_context.delay_start.elapsed().as_millis() >= ui_context.delay.into() {

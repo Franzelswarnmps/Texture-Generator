@@ -38,23 +38,19 @@ impl Rule {
         }
     }
 
-    /// Get a reference to the rule's action.
     pub fn action(&self) -> &[Action] {
         self.action.as_ref()
     }
 
-    /// Get a reference to the rule's condition.
     pub fn condition(&self) -> &Regex {
         &self.condition
     }
 
-    /// Set the rule's action.
     pub fn set_action(&mut self, action: &str) {
         self.original_action = action.to_owned();
         self.action = Rule::parse_action(action);
     }
 
-    /// Set the rule's condition.
     pub fn set_condition(&mut self, condition: &str) {
         self.original_condition = condition.to_owned();
         self.condition = Rule::parse_condition(condition);
@@ -107,12 +103,10 @@ impl Rule {
         results
     }
 
-    /// Get a reference to the rule's original action.
     pub fn original_action(&self) -> &str {
         self.original_action.as_ref()
     }
 
-    /// Get a reference to the rule's original condition.
     pub fn original_condition(&self) -> &str {
         self.original_condition.as_ref()
     }
