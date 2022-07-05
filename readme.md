@@ -10,7 +10,7 @@ and hold space (run the rules), while occasionally pressing R (randomize all).
 You will see the rules being applied continuously. Every time you press R, you
 will see a new starting condition and new set of rules applied.
 
-# What is it doing?
+# How is it working?
 This tool executes *Rules* on a grid of letters using regular expressions.
 Each *Rule*'s regular expression runs on each letter in the grid, including the 8
 neighbor letters in the following order:
@@ -58,17 +58,14 @@ The end result is the colors that are more likely to interact with
 each other are also more likely to be accent to the same primary color.
 
 # How do I export the image?
-Using the *Save* button encodes the image as a png in base64 with 
+In the WASM version, the *Save* button will prompt you to save the png to your
+filesystem. On the standalone version, you can paste the string into Chrome and
+save the image. The string is contains the image in as a png in base64 with 
 content type and content encoding specified for html rendering.
-Pasting the string into Chrome's address bar will render the image.
 
 # Build notes
 ~~~
 https://bevy-cheatbook.github.io/platforms/wasm/gh-pages.html
 https://dev.to/sbelzile/making-games-in-rust-deploying-a-bevy-app-to-the-web-1ahn
 https://rustwasm.github.io/wasm-bindgen/reference/cli.html
-
-cargo build --release --target wasm32-unknown-unknown
-wasm-bindgen --out-dir .\out --target web .\target\wasm32-unknown-unknown\release\auto.wasm
-python -m http.server --directory .\out\
 ~~~
