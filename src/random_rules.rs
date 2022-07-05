@@ -225,7 +225,7 @@ impl ColorSettings {
                 primaries
                     .into_iter()
                     .chain(accents.into_iter())
-                    .map(|c| Color::hsl(c[0], c[1], c[2]).as_rgba().as_rgba_f32())
+                    .map(|c| Color::hsl(c[0], c[1], c[2]).as_rgba_f32())
                     .map(|r| {
                         [
                             ((r[0] * 255.0).round() as u8),

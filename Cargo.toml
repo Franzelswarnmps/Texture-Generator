@@ -6,15 +6,23 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.7"
-rand = "0.8"
+futures = "0.3"
 
+bevy = "0.7"
+bevy_egui = "0.13"
+
+rand = "0.8"
 regex = "1.5"
 lazy_static = "1.4"
 noise = "0.7"
-bevy_egui = "0.13"
 
 # export
 image = "0.24"
 base64 = "0.13"
 serde_json = "1.0"
+
+# [target.'cfg(target_family = "wasm")']
+wasm-bindgen = { version = "0.2"}
+wasm-bindgen-futures = { version = "0.4"}
+bevy_web_fullscreen = { git = "https://github.com/ostwilkens/bevy_web_fullscreen"}
+web-sys = { version = "0.3", features = ["Element", "Document", "Window","HtmlElement","Clipboard","Navigator","console"]}

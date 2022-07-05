@@ -18,18 +18,26 @@ use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
+    let mut app = App::new();
+    app.add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_startup_system(setup)
         .add_system(egui)
         .add_system(keybinds)
         .add_system(paint)
         .add_system(refresh_texture)
-        .add_system(resize_texture)
-        .run();
+        .add_system(resize_texture);
+
+    #[cfg(target_family = "wasm")]
+    app.add_plugin(bevy_web_fullscreen::FullViewportPlugin);
+
+    #[cfg(debug_assertions)]
+    {
+        app.add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
+            .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default());
+    }
+
+    app.run();
 }
 
 fn setup(mut commands: Commands, textures: ResMut<Assets<Image>>) {

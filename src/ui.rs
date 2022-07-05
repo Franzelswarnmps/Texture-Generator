@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::sync::{Arc, Mutex};
 
 use crate::{
     rule::Rule,
@@ -9,9 +9,11 @@ use crate::{
 };
 use bevy::{input::mouse::MouseWheel, prelude::*};
 use bevy_egui::{
-    egui::{self, color::Hsva, Align2, ScrollArea, Slider},
+    egui::{self, color::Hsva, Align2, Checkbox, ScrollArea, Slider},
     EguiContext,
 };
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::spawn_local;
 
 pub struct UiContext {
     pub paint_letter: char,
@@ -19,14 +21,14 @@ pub struct UiContext {
     pub currently_painting: bool,
     pub last_paint_point: Option<Vec2>,
 
-    pub delay: u64,
-    pub delay_start: Instant,
+    pub run_hold_toggle: bool,
 
     pub texture_dimensions: (usize, usize),
     pub update_texture_dimensions: bool,
 
     pub saved_image: String,
     pub config_export: String,
+    pub config_import_delayed: bool,
     pub config_import: String,
 }
 
@@ -39,11 +41,11 @@ impl UiContext {
             last_paint_point: None,
             texture_dimensions: (0, 0),
             update_texture_dimensions: false,
-            delay: 0,
-            delay_start: Instant::now(),
+            run_hold_toggle: true,
 
             saved_image: "".into(),
             config_export: "".into(),
+            config_import_delayed: false,
             config_import: "".into(),
         }
     }
@@ -51,7 +53,7 @@ impl UiContext {
 
 pub fn keybinds(
     mut egui_ctx: ResMut<EguiContext>,
-    mut ui_context: ResMut<UiContext>,
+    ui_context: ResMut<UiContext>,
     keyboard_input: Res<Input<KeyCode>>,
     mut scroll_evr: EventReader<MouseWheel>,
     mut camera: Query<(&mut Transform, &mut OrthographicProjection), With<Camera>>,
@@ -100,9 +102,10 @@ pub fn keybinds(
     }
 
     //actions
-
-    if keyboard_input.pressed(KeyCode::Space) {
-        apply_rules(&mut ui_context, &mut main_texture.sprite_gen);
+    if (ui_context.run_hold_toggle && keyboard_input.pressed(KeyCode::Space))
+        || keyboard_input.just_pressed(KeyCode::Space)
+    {
+        apply_rules(&mut main_texture.sprite_gen);
     }
 
     if keyboard_input.just_pressed(KeyCode::C) {
@@ -170,6 +173,8 @@ pub fn egui(
                     let mut data = vec![255u8; width * height * 4];
                     sprite_gen.update_texture(&mut data);
                     ui_context.saved_image = texture_to_png_base64(data, width, height);
+
+                    wasm_save_image(&ui_context.saved_image);
                 }
                 ui.text_edit_singleline(&mut ui_context.saved_image);
             });
@@ -180,12 +185,43 @@ pub fn egui(
                 if ui.button("Export Config").clicked() {
                     ui_context.config_export =
                         serialize_config(&sprite_gen.rules, &sprite_gen.char_color);
+                    set_clipboard(&ui_context.config_export);
                 }
                 ui.text_edit_singleline(&mut ui_context.config_export);
             });
 
             ui.horizontal(|ui| {
+                /* load config
+                if not wasm, load from text field
+                if wasm, load from clipboard once we can lock clipboard mutex
+                */
+                lazy_static::lazy_static! {
+                    static ref CLIPBOARD_BUFFER: Arc<Mutex<(bool, String)>> = Arc::new(Mutex::new((false, String::new())));
+                }
+                let mut config_load_ready = false;
+                #[cfg(target_family = "wasm")] {
+                    if ui_context.config_import_delayed {
+                        if let Ok(mut clipboard) = CLIPBOARD_BUFFER.try_lock() {
+                            if clipboard.0 {
+                                ui_context.config_import = clipboard.1.clone();
+                                *clipboard = (false,"".into());
+                                ui_context.config_import_delayed = false;
+                                config_load_ready = true;
+                            }
+                        }
+                    }
+                }
+
                 if ui.button("Import Config").clicked() {
+                    config_load_ready = true;
+                    #[cfg(target_family = "wasm")] {
+                        ui_context.config_import_delayed = true;
+                        get_clipboard(CLIPBOARD_BUFFER.clone());
+                        config_load_ready = false;
+                    }
+                }
+
+                if config_load_ready {
                     if let Some((rules, colors)) = deserialize_config(&ui_context.config_import) {
                         sprite_gen.rules = rules;
                         sprite_gen.char_color = colors;
@@ -209,8 +245,17 @@ pub fn egui(
                 sprite_gen.randomize_rules();
             }
             if ui.button("Run (Space)").clicked() {
-                apply_rules(&mut ui_context, sprite_gen);
+                apply_rules(sprite_gen);
             }
+
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                ui.add(Checkbox::new(
+                    &mut ui_context.run_hold_toggle,
+                    "Run Hold Toggle",
+                ));
+            });
 
             ui.separator();
 
@@ -228,7 +273,10 @@ pub fn egui(
                     let mut width: String = original_width.clone();
                     ui.text_edit_singleline(&mut width);
                     if width != original_width {
-                        ui_context.texture_dimensions.0 = width.parse().unwrap_or(0);
+                        ui_context.texture_dimensions.0 = match width.parse().unwrap_or(1) {
+                            x if x < 1 => 1,
+                            x => x,
+                        };
                     }
                 });
 
@@ -239,16 +287,12 @@ pub fn egui(
                     let mut height: String = original_height.clone();
                     ui.text_edit_singleline(&mut height);
                     if height != original_height {
-                        ui_context.texture_dimensions.1 = height.parse().unwrap_or(0);
+                        ui_context.texture_dimensions.1 = match height.parse().unwrap_or(1) {
+                            x if x < 1 => 1,
+                            x => x,
+                        };
                     }
                 });
-            });
-
-            ui.separator();
-
-            ui.horizontal(|ui| {
-                ui.label("Delay");
-                ui.add(Slider::new(&mut ui_context.delay, 0..=1000));
             });
 
             ui.separator();
@@ -323,11 +367,76 @@ pub fn egui(
         });
 }
 
-fn apply_rules(ui_context: &mut UiContext, sprite_gen: &mut SpriteGen) {
-    if ui_context.delay < 1 {
-        sprite_gen.apply();
-    } else if ui_context.delay_start.elapsed().as_millis() >= ui_context.delay.into() {
-        sprite_gen.apply();
-        ui_context.delay_start = Instant::now();
+fn apply_rules(sprite_gen: &mut SpriteGen) {
+    sprite_gen.apply();
+}
+
+fn wasm_save_image(data: &str) {
+    #[cfg(target_family = "wasm")]
+    {
+        let browser_window = web_sys::window().expect("could not get window");
+        let save_element = browser_window
+            .document()
+            .expect("could not get document")
+            .create_element("a")
+            .expect("could not create save element");
+        save_element
+            .set_attribute("href", data)
+            .expect("could not set element attribute");
+        save_element
+            .set_attribute("download", "texture.png")
+            .expect("could not set element attribute");
+
+        save_element
+            .dyn_into::<web_sys::HtmlElement>()
+            .expect("could not convert save element")
+            .click();
+    }
+}
+
+fn set_clipboard(data: &str) {
+    #[cfg(target_family = "wasm")]
+    {
+        let clipboard = web_sys::window()
+            .expect("could not get window")
+            .navigator()
+            .clipboard()
+            .expect("could not get clipboard");
+
+        let data_clone = data.to_string();
+        spawn_local(async move {
+            let result =
+                wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&data_clone)).await;
+            if result.is_ok() {
+                println!("test1");
+            } else {
+                println!("test2");
+            }
+        });
+    }
+}
+
+fn get_clipboard(clipboard_buffer: Arc<Mutex<(bool, String)>>) {
+    #[cfg(target_family = "wasm")]
+    {
+        let clipboard = web_sys::window()
+            .expect("could not get window")
+            .navigator()
+            .clipboard()
+            .expect("could not get clipboard");
+
+        spawn_local(async move {
+            let result = wasm_bindgen_futures::JsFuture::from(clipboard.read_text()).await;
+
+            if let Ok(mut clipboard) = clipboard_buffer.try_lock() {
+                *clipboard = (
+                    true,
+                    result
+                        .expect("could not get clipboard")
+                        .as_string()
+                        .expect("could not read clipboard"),
+                );
+            }
+        });
     }
 }

@@ -100,13 +100,13 @@ pub fn apply_rules(rng: &mut ThreadRng, texture: &mut CharTexture, rules: &[Rule
 }
 
 /* <location><value>[<chance>]
-    if <location> is 1-9, use as loc
-    if <location> is A-Z, use indices of cells with those values
-    if <location> is *, use 1-9 indices
-    if <value> is 1-9, use value from that cell
-    if <value> is A-Z, use that value
-    if <value> is *, use random value
-    <chance> is a nonnegative decimal such that 1.0 >= chance >= std::f32::MIN_POS_VALUE
+if <location> is 1-9, use as the relative index
+if <location> is A-Z, lookup the indices cells in range matching the letter
+if <location> is *, use all 1-9 as indices
+if <value> is 1-9, use the letter from that cell as the value
+if <value> is A-Z, use that letter as the value
+if <value> is *, use a random letter as the value
+<chance> is a nonnegative decimal such that 1.0 >= chance >= std::f32::MIN_POS_VALUE
     ([A-Z1-9*])([A-Z1-9*])(?:\[([0]?[.][0-9]+)\])?
 */
 fn apply_actions(

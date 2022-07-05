@@ -283,7 +283,7 @@ fn noise_plateau(
         for (k2, v2) in letter_colors.iter() {
             let sum1: i32 = v1.iter().map(|i| *i as i32).sum();
             let sum2: i32 = v2.iter().map(|i| *i as i32).sum();
-            diff_pairs.push((*k1, *k2, (sum1 - sum2).abs() as u32));
+            diff_pairs.push((*k1, *k2, (sum1 - sum2).unsigned_abs()));
         }
     }
     // let total_diff: u32 = diff_pairs.iter().map(|(_,_,n)| n).sum();
