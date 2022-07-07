@@ -4,6 +4,8 @@ depending on how you want to look at it. The end result is images with interesti
 the tool was made to loosely follow Allan Turing's activator/inhibitor approach of generating
 lifelike patterns.
 
+RUN THE WEB DEMO HERE: [https://franzelswarnmps.github.io/Texture-Generator](https://franzelswarnmps.github.io/Texture-Generator/)
+
 # How can I use it?
 The easiest way to get started is to open the web version here []
 and hold space (run the rules), while occasionally pressing R (randomize all).
