@@ -1,16 +1,18 @@
 # What does it do?
-This *game/app/tool* generates textures, or runs a more convoluted version of cellular automata
-depending on how you want to look at it. The end result is images with interesting patterns. Initially
-the tool was made to loosely follow Allan Turing's activator/inhibitor approach of generating
-lifelike patterns.
+This *game/app/tool* generates textures. The idea was to loosely follow Allan Turing's activator/inhibitor approach 
+of generating lifelike patterns. Cellular Automaton running on user-defined (or random) rules are used to generate the textures.
+Randomly layered noise functions are used for the starting conditions. Color combinations use HSL offsets for reasonable gradients.
 
-RUN THE WEB DEMO HERE: [https://franzelswarnmps.github.io/Texture-Generator](https://franzelswarnmps.github.io/Texture-Generator/)
+**Run the program in your browser using WASM and WebGL here:** [https://franzelswarnmps.github.io/Texture-Generator](https://franzelswarnmps.github.io/Texture-Generator/)
 
 # How can I use it?
-The easiest way to get started is to open the web version here []
+The easiest way to get started is to open the web version [https://franzelswarnmps.github.io/Texture-Generator](here)
 and hold space (run the rules), while occasionally pressing R (randomize all).
 You will see the rules being applied continuously. Every time you press R, you
 will see a new starting condition and new set of rules applied.
+
+Another approach is to hold space (run the rules) while occasionally pressing F (randomize rules only).
+It's easier to see the changes happening if you click the canvas to paint at the same time.
 
 # How is it working?
 This tool executes *Rules* on a grid of letters using regular expressions.
@@ -19,7 +21,7 @@ neighbor letters in the following order:
 
 1 - 2 - 3\
 4 - 5 - 6\
-7 - 8 - 9\
+7 - 8 - 9
 
 If letters were assigned to indices in alphabetical order, a rule's regular
 expression would run on the string "ABCDEFGHI".
@@ -62,7 +64,7 @@ each other are also more likely to be accent to the same primary color.
 # How do I export the image?
 In the WASM version, the *Save* button will prompt you to save the png to your
 filesystem. On the standalone version, you can paste the string into Chrome and
-save the image. The string is contains the image in as a png in base64 with 
+save the image. The string contains the image as a png in base64 with 
 content type and content encoding specified for html rendering.
 
 # Build notes
